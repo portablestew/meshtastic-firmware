@@ -346,10 +346,14 @@ void CannedMessageModule::updateDestinationSelectionList()
     p->pki_encrypted = true;
     p->channel = 0;
 
-    // Populate active channels
+    // Populate active channels (skip disabled channels)
     std::vector<String> seenChannels;
     seenChannels.reserve(channels.getNumChannels());
     for (uint8_t i = 0; i < channels.getNumChannels(); ++i) {
+        meshtastic_Channel &ch = channels.getByIndex(i);
+        if (ch.role == meshtastic_Channel_Role_DISABLED) {
+            continue;
+        }
         String name = channels.getName(i);
         if (name.length() > 0 && std::find(seenChannels.begin(), seenChannels.end(), name) == seenChannels.end()) {
             this->activeChannelIndices.push_back(i);
