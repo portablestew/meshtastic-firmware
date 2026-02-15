@@ -1293,8 +1293,10 @@ void menuHandler::nodeListMenu()
         optionsArray[options] = "Show Long/Short Name";
         optionsEnumArray[options++] = NodeNameLength;
     }
+#if !MESHTASTIC_EXCLUDE_SETTINGS
     optionsArray[options] = "Reset NodeDB";
     optionsEnumArray[options++] = Reset;
+#endif
 
     BannerOverlayOptions bannerOptions;
     bannerOptions.message = "Node Action";
@@ -1305,9 +1307,11 @@ void menuHandler::nodeListMenu()
         if (selected == NodePicker) {
             menuQueue = NodePickerMenu;
             screen->runNow();
+#if !MESHTASTIC_EXCLUDE_SETTINGS
         } else if (selected == Reset) {
             menuQueue = ResetNodeDbMenu;
             screen->runNow();
+#endif
         } else if (selected == NodeNameLength) {
             menuHandler::menuQueue = menuHandler::NodeNameLengthMenu;
             screen->runNow();

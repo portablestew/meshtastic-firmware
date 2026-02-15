@@ -1776,16 +1776,20 @@ int Screen::handleInputEvent(const InputEvent *event)
             } else if (event->inputEvent == INPUT_BROKER_SELECT) {
                 if (this->ui->getUiState()->currentFrame == framesetInfo.positions.home) {
                     menuHandler::homeBaseMenu();
+#if !MESHTASTIC_EXCLUDE_SETTINGS
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.system) {
                     menuHandler::systemBaseMenu();
-#if HAS_GPS
+#endif
+#if HAS_GPS && !MESHTASTIC_EXCLUDE_SETTINGS
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.gps && gps) {
                     menuHandler::positionBaseMenu();
 #endif
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.clock) {
                     menuHandler::clockMenu();
+#if !MESHTASTIC_EXCLUDE_SETTINGS
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.lora) {
                     menuHandler::loraMenu();
+#endif
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.textMessage) {
                     if (!messageStore.getMessages().empty()) {
                         menuHandler::messageResponseMenu();
