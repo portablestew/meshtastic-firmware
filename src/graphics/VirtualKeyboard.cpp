@@ -25,8 +25,8 @@ void VirtualKeyboard::initializeKeyboard()
 {
     // New 4 row, 11 column keyboard layout:
     static const char LAYOUT[KEYBOARD_ROWS][KEYBOARD_COLS] = {{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '\b'},
-                                                              {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '\n'},
-                                                              {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', ' '},
+                                                              {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', ' '},
+                                                              {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\n'},
                                                               {'z', 'x', 'c', 'v', 'b', 'n', 'm', '.', ',', '?', '\x1b'}};
 
     // Derive layout dimensions and assert they match the configured keyboard grid
@@ -83,8 +83,8 @@ void VirtualKeyboard::draw(OLEDDisplay *display, int16_t offsetX, int16_t offset
 
     // Determine last-column label max width
     display->setFont(FONT_SMALL);
-    const int wENTER = display->getStringWidth("ENTER");
-    int lastColLabelW = wENTER; // ENTER is usually the widest
+    const int wSPACE = display->getStringWidth("SPACE");
+    int lastColLabelW = wSPACE; // SPACE is usually the widest
     // Smaller padding on very small screens to avoid excessive whitespace
     const int lastColPad = (screenW <= 128 ? 2 : 6);
     const int reservedLastColW = lastColLabelW + lastColPad; // reserved width for last column keys
@@ -414,28 +414,54 @@ void VirtualKeyboard::drawKey(OLEDDisplay *display, const VirtualKey &key, bool 
     // Draw key content
     display->setFont(FONT_SMALL);
     const int fontH = FONT_HEIGHT_SMALL;
+
     // Build label and metrics first
-    std::string keyText;
-    if (key.type == VK_BACKSPACE || key.type == VK_ENTER || key.type == VK_SPACE || key.type == VK_ESC) {
-        // Keep literal text labels for the action keys on the rightmost column
-        keyText = (key.type == VK_BACKSPACE) ? "BACK"
-                  : (key.type == VK_ENTER)   ? "ENTER"
-                  : (key.type == VK_SPACE)   ? "SPACE"
-                  : (key.type == VK_ESC)     ? "ESC"
-                                             : "";
-    } else {
-        char c = getCharForKey(key, false);
-        if (c >= 'a' && c <= 'z') {
-            c = c - 'a' + 'A';
-        }
-        keyText = (key.character == ' ' || key.character == '_') ? "_" : std::string(1, c);
-        // Show the common "/" pairing next to "?" like on a real keyboard
-        if (key.type == VK_CHAR && key.character == '?') {
-            keyText = "?/";
-        }
+    const char* keyText = "?";
+    char keyTextBuf[2] = {0}; // for single char keys
+    switch (key.type) {
+        case VK_BACKSPACE:
+            keyText = "BACK";
+            break;
+        case VK_ENTER:
+            keyText = "SEND>";
+            break;
+        case VK_SHIFT:
+            keyText = "SHIFT";
+            break;
+        case VK_ESC:
+            keyText = "<ESC";
+            break;
+        case VK_SPACE:
+            keyText = "SPACE";
+            break;
+
+        case VK_CHAR:
+            switch (key.character) {
+                case ' ':
+                case '_':
+                    keyText = "_";
+                    break;
+                case '?':
+                    keyText = "?/"; // Show the common "/" pairing next to "?" like on a real keyboard
+                    break;
+                case ';':
+                    keyText = ";:"; // Show the common ":" pairing next to ";" like on a real keyboard
+                    break;
+
+                default:
+                    {
+                        char c = getCharForKey(key);
+                        if (c >= 'a' && c <= 'z') {
+                            c -= 32; // uppercase
+                        }
+                        keyTextBuf[0] = c;
+                        keyText = keyTextBuf;
+                    }
+                    break;
+            }
     }
 
-    int textWidth = display->getStringWidth(keyText.c_str());
+    int textWidth = display->getStringWidth(keyText);
     // Label alignment
     // - Rightmost action column: right-align text with a small right padding (~2px) so it hugs screen edge neatly.
     // - Other keys: center horizontally; use ceil-style rounding to avoid appearing left-biased on odd widths.
@@ -502,7 +528,7 @@ void VirtualKeyboard::drawKey(OLEDDisplay *display, const VirtualKey &key, bool 
             centeredTextY = std::max(contentTop, contentTop + contentH - fontH);
     }
 
-    if (display->getHeight() <= 64 && keyText.size() == 1) {
+    if (display->getHeight() <= 64 && strlen(keyText) == 1) {
         char ch = keyText[0];
         if (ch == '.' || ch == ',' || ch == ';') {
             centeredTextY -= 1;
@@ -511,23 +537,30 @@ void VirtualKeyboard::drawKey(OLEDDisplay *display, const VirtualKey &key, bool 
 #ifdef MUZI_BASE // Correct issue with character vertical position on MUZI_BASE
     centeredTextY -= 2;
 #endif
-    display->drawString(textX, centeredTextY, keyText.c_str());
+    display->drawString(textX, centeredTextY, keyText);
 }
 
 char VirtualKeyboard::getCharForKey(const VirtualKey &key, bool isLongPress)
 {
+    static constexpr const char DIGIT_SYMBOLS[] = ")!@#$%^&*(";
+
     if (key.type != VK_CHAR) {
         return key.character;
     }
 
     char c = key.character;
 
-    // Long-press: letters become uppercase; for "?" provide "/" like a typical keyboard
+    // Long-press: letters become uppercase; numbers become special chars; for "?" provide "/" like a typical keyboard
     if (isLongPress) {
         if (c >= 'a' && c <= 'z') {
             c = (char)(c - 'a' + 'A');
+        } else if (c >= '0' && c <= '9') {
+            // Map digits to common shifted symbols on a QWERTY layout
+            c = DIGIT_SYMBOLS[c - '0'];
         } else if (c == '?') {
             c = '/';
+        } else if (c == ';') {
+            c = ':';
         }
     }
 
