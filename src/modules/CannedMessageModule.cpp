@@ -197,7 +197,6 @@ void CannedMessageModule::LaunchFreetextWithDestination(NodeNum newDest, uint8_t
     UIFrameEvent e;
     e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
     notifyObservers(&e);
-
     LOG_DEBUG("[CannedMessage] LaunchFreetextWithDestination dest=0x%08x ch=%d", dest, channel);
 }
 
@@ -384,6 +383,18 @@ int CannedMessageModule::handleInputEvent(const InputEvent *event)
     // Block ALL input if an alert banner is active
     if (screen && screen->isOverlayBannerShowing()) {
         return 0;
+    }
+
+    // While the OSK is active, Screen/NotificationRenderer routes input to the VK via inEvent
+    // Don't process events here — doing so recreates the VK on every keypress
+    if (graphics::NotificationRenderer::virtualKeyboard) {
+        if (graphics::NotificationRenderer::isTextInputActive()) {
+            lastTouchMillis = millis();
+            return 0;
+        }
+        // Orphaned VK — an incoming message displaced the notification type without stopping the OSK.
+        // Fall through to normal input so the UI stays responsive.
+        // The VK will be reattached (via resetTimeout + re-sync) on the next showTextInput call.
     }
 
     // Tab key: Always allow switching between canned/destination screens

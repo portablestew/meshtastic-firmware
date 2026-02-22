@@ -699,14 +699,8 @@ void NotificationRenderer::drawTextInput(OLEDDisplay *display, OLEDDisplayUiStat
             LOG_INFO("Virtual keyboard timeout - auto-exiting");
             // Cancel virtual keyboard - call callback with empty string to indicate timeout
             auto callback = textInputCallback; // Store callback before clearing
-
-            // Clean up first to prevent re-entry
-            delete virtualKeyboard;
-            virtualKeyboard = nullptr;
-            textInputCallback = nullptr;
+            OnScreenKeyboardModule::instance().stop(false); // deletes keyboard and nulls both pointers
             resetBanner();
-
-            // Call callback after cleanup
             if (callback) {
                 callback("");
             }
@@ -722,9 +716,7 @@ void NotificationRenderer::drawTextInput(OLEDDisplay *display, OLEDDisplayUiStat
             bool handled = OnScreenKeyboardModule::processVirtualKeyboardInput(inEvent, virtualKeyboard);
             if (!handled && inEvent.inputEvent == INPUT_BROKER_CANCEL) {
                 auto callback = textInputCallback;
-                delete virtualKeyboard;
-                virtualKeyboard = nullptr;
-                textInputCallback = nullptr;
+                OnScreenKeyboardModule::instance().stop(false); // deletes keyboard and nulls both pointers
                 resetBanner();
                 if (callback) {
                     callback("");
@@ -771,6 +763,11 @@ void NotificationRenderer::drawTextInput(OLEDDisplay *display, OLEDDisplayUiStat
 bool NotificationRenderer::isOverlayBannerShowing()
 {
     return strlen(alertBannerMessage) > 0 && (alertBannerUntil == 0 || millis() <= alertBannerUntil);
+}
+
+bool NotificationRenderer::isTextInputActive()
+{
+    return current_notification_type == notificationTypeEnum::text_input;
 }
 
 void NotificationRenderer::showKeyboardMessagePopupWithTitle(const char *title, const char *content, uint32_t durationMs)

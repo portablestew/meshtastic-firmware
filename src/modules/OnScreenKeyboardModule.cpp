@@ -29,16 +29,21 @@ OnScreenKeyboardModule::~OnScreenKeyboardModule()
 void OnScreenKeyboardModule::start(const char *header, const char *initialText, uint32_t durationMs,
                                    std::function<void(const std::string &)> cb)
 {
+    // Retain an orphaned keyboard left from an interrupted session — just reset its timeout.
+    // Otherwise, allocate a fresh one.
     if (keyboard) {
-        delete keyboard;
-        keyboard = nullptr;
+        LOG_INFO("[OSK] Reattaching to retained VK (text='%s')", keyboard->getInputText().c_str());
+    } else {
+        keyboard = new VirtualKeyboard();
     }
-    keyboard = new VirtualKeyboard();
+    keyboard->resetTimeout();
     callback = cb;
-    if (header)
+    if (header) {
         keyboard->setHeader(header);
-    if (initialText)
+    }
+    if (initialText && strlen(initialText) > 0) {
         keyboard->setInputText(initialText);
+    }
 
     // Route VK submission/cancel events back into the module
     keyboard->setCallback([this](const std::string &text) {
